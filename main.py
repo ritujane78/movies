@@ -7,7 +7,8 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, FloatField
 from wtforms.validators import DataRequired
 import requests
-
+import os
+from dotenv import load_dotenv
 '''
 Red underlines? Install the required packages first: 
 Open the Terminal in PyCharm (bottom left). 
@@ -24,6 +25,11 @@ This will install the packages from requirements.txt for this project.
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 Bootstrap5(app)
+
+movie_url = "https://api.themoviedb.org/3/search/movie"
+
+load_dotenv()
+api_key = os.getenv("API_KEY")
 
 # CREATE DB
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///movies.db"
@@ -61,10 +67,15 @@ class Movie(db.Model):
 #     db.session.commit()
 
 
+class AddForm(FlaskForm):
+    movie_title = StringField("Movie Title", validators=[DataRequired()])
+    add_button = SubmitField("Add Movie")
+
+
 class EditForm(FlaskForm):
     new_rating = FloatField('Your Rating out of 10 e.g. 7.5')
     new_review = StringField("Your Review")
-    submit = SubmitField("Done")
+    edit_submit = SubmitField("Done")
 
 
 @app.route("/", methods=['POST', 'GET'])
@@ -74,10 +85,22 @@ def home():
     return render_template("index.html", movies=all_movies)
 
 
+@app.route("/add", methods=['GET','POST'])
+def add_movie():
+    new_movie_add_form = AddForm()
+    if request.method == 'POST':
+        title = new_movie_add_form.movie_title.data
+        response = requests.get(movie_url, params={"api_key": api_key, "query": title})
+        movie_titles = response.json()
+
+        return render_template("select.html", movie_list=movie_titles['results'])
+
+    return render_template("add.html", form=new_movie_add_form)
+
+
 @app.route("/edit", methods=['POST', 'GET'])
 def edit_movie():
     movie_id = request.args.get('id')
-    # print(movie_id)
     query = db.session.execute(db.select(Movie).where(Movie.id==movie_id))
     selected_movie = query.scalar()
     movie_edit_form = EditForm()
