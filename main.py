@@ -27,7 +27,7 @@ app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 Bootstrap5(app)
 
 movie_url = "https://api.themoviedb.org/3/search/movie"
-
+one_movie_url = "https://api.themoviedb.org/3/movie"
 load_dotenv()
 api_key = os.getenv("API_KEY")
 
@@ -44,18 +44,18 @@ db.init_app(app)
 
 # CREATE TABLE
 class Movie(db.Model):
-    id:Mapped[int]= mapped_column(Integer, primary_key=True, autoincrement=True)
+    id:Mapped[int]= mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     year: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False)
-    rating:Mapped[float] = mapped_column(Float, nullable=False)
-    ranking:Mapped[int] = mapped_column(Integer, nullable=False)
-    review: Mapped[str] = mapped_column(String, nullable=False)
+    rating:Mapped[float] = mapped_column(Float, nullable=True)
+    ranking:Mapped[int] = mapped_column(Integer, nullable=True)
+    review: Mapped[str] = mapped_column(String, nullable=True)
     img_url: Mapped[str] = mapped_column(String, nullable=False)
 
 
-# with app.app_context():
-#     db.create_all()
+with app.app_context():
+    db.create_all()
 #
 # with app.app_context():
 #     new_movie = Movie(title="Phone Booth",year="2002",description="Publicist Stuart Shepard finds himself trapped in a phone booth, pinned down by an extortionist's sniper rifle. Unable to leave or receive outside help, Stuart's negotiation with the caller leads to a jaw-dropping climax.",
@@ -85,18 +85,34 @@ def home():
     return render_template("index.html", movies=all_movies)
 
 
-@app.route("/add", methods=['GET','POST'])
+@app.route("/temp_add", methods=['GET','POST'])
 def add_movie():
     new_movie_add_form = AddForm()
     if request.method == 'POST':
         title = new_movie_add_form.movie_title.data
         response = requests.get(movie_url, params={"api_key": api_key, "query": title})
         movie_titles = response.json()
-
+        print(movie_titles['results'])
         return render_template("select.html", movie_list=movie_titles['results'])
 
     return render_template("add.html", form=new_movie_add_form)
 
+
+@app.route("/add")
+def add_to_home():
+    movie_id = request.args.get('id')
+    # print(movie_id)
+    response = requests.get(f"{one_movie_url}/{movie_id}", params={"api_key": api_key, "language": "en-US"})
+    movie = response.json()
+    with app.app_context():
+        new_movie = Movie(title=f"{movie['title']}",year="2002",description=movie["overview"],
+                      img_url=f"https://image.tmdb.org/t/p/w500{movie['poster_path']}"
+                      )
+        db.session.add(new_movie)
+        db.session.commit()
+        movie_id = new_movie.id
+
+    return redirect(url_for("edit_movie", id=movie_id))
 
 @app.route("/edit", methods=['POST', 'GET'])
 def edit_movie():
