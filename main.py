@@ -94,7 +94,7 @@ def home():
     return render_template("index.html", movies=sorted_movies, disable_add=disable_add)
 
 
-@app.route("/temp_add", methods=['GET','POST'])
+@app.route("/add", methods=['GET','POST'])
 def add_movie():
     new_movie_add_form = AddForm()
     if request.method == 'POST':
@@ -106,8 +106,8 @@ def add_movie():
     return render_template("add.html", form=new_movie_add_form)
 
 
-@app.route("/add")
-def add_to_home():
+@app.route("/find")
+def find_movie():
     movie_id = request.args.get('id')
     response = requests.get(f"{one_movie_url}/{movie_id}", params={"api_key": api_key, "language": "en-US"})
     movie = response.json()
