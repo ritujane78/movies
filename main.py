@@ -38,6 +38,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///movies.db"
 class Base(DeclarativeBase):
     pass
 
+
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
@@ -80,9 +81,17 @@ class EditForm(FlaskForm):
 
 @app.route("/", methods=['POST', 'GET'])
 def home():
+    disable_add = False
     query = db.session.execute(db.select(Movie))
     all_movies = query.scalars().all()
-    return render_template("index.html", movies=all_movies)
+    sorted_movies = sorted(all_movies, key=lambda x: x.rating)
+    lowest = 10
+    for movie in sorted_movies:
+        movie.ranking = lowest
+        lowest -= 1
+    if lowest < 1:
+        disable_add = True
+    return render_template("index.html", movies=sorted_movies, disable_add=disable_add)
 
 
 @app.route("/temp_add", methods=['GET','POST'])
@@ -92,7 +101,6 @@ def add_movie():
         title = new_movie_add_form.movie_title.data
         response = requests.get(movie_url, params={"api_key": api_key, "query": title})
         movie_titles = response.json()
-        print(movie_titles['results'])
         return render_template("select.html", movie_list=movie_titles['results'])
 
     return render_template("add.html", form=new_movie_add_form)
@@ -101,11 +109,10 @@ def add_movie():
 @app.route("/add")
 def add_to_home():
     movie_id = request.args.get('id')
-    # print(movie_id)
     response = requests.get(f"{one_movie_url}/{movie_id}", params={"api_key": api_key, "language": "en-US"})
     movie = response.json()
     with app.app_context():
-        new_movie = Movie(title=f"{movie['title']}",year="2002",description=movie["overview"],
+        new_movie = Movie(title=f"{movie['title']}",year=movie['release_date'].split('-')[0],description=movie["overview"],
                       img_url=f"https://image.tmdb.org/t/p/w500{movie['poster_path']}"
                       )
         db.session.add(new_movie)
@@ -134,12 +141,10 @@ def edit_movie():
 @app.route("/delete")
 def delete_movie():
     movie_id = request.args.get('id')
-    print(movie_id)
     movie_to_delete = db.session.execute(db.select(Movie).where(Movie.id == movie_id)).scalar()
     db.session.delete(movie_to_delete)
     db.session.commit()
     return redirect("/")
-
 
 
 if __name__ == '__main__':

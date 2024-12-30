@@ -30,9 +30,13 @@
     </div>
   </div>
 </div>
-<div class="container text-center add">
-<a href="{{url_for('add_movie')}}" class="button">Add Movie</a>
-</div>
 {% endfor %}
+<div class="container text-center add">
+    {% if not disable_add %}
+        <a href="{{ url_for('add_movie') }}" class="button">Add Movie</a>
+    {% else %}
+        <a class="button disabled" style="pointer-events: none; color: grey;">Add Movie (Disabled)</a>
+    {% endif %}
+</div>
 
 {% endblock %}
